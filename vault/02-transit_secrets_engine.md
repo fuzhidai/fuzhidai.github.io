@@ -51,23 +51,27 @@ key_version    1
 
 ### 3. 服务端：处理加密请求
 
-这一部分是加密请求的核心处理逻辑，抛开非重点的校验和处理细节，我们主要聚焦核心的处理流程。
+这一部分是加密请求的核心处理逻辑，将抛开非重点的校验和处理细节，主要聚焦在核心的处理流程上。处理的流程从上一节结束的 `*backend.pathEncryptWrite` 方法开始，首先会从请求的参数结构体 `*framework.FieldData` 中解析参数，并对参数的合法性仅仅校验。
 
-1. 参数解析及校验：从 `*framework.FieldData` 中解析参数
+而后，将会获取加解密操作的核心对象 `*keysutil.Policy`，该对象是后续所有加密操作的核心对象，对象内保存着本次加密所需的关键参数。这里需要注意的是，当我们构造获取 Policy 对象的请求参数时，会发现本次的操作类型 `*logical.Request.Operation` 为 `logical.UpdateOperation`，而非 `logical.CreateOperation`，这意味着本次加密操作，本质是一个更新操作，而非一次创建操作。
 
-2. 获取 `*keysutil.Policy` 对象，这里需要注意的是，当我们进行一次加密操作时，`*logical.Request.Operation` 为 `logical.UpdateOperation`，这意味着本次操作是一个更新操作，而非一次创建操作；
+当获取到 `*keysutil.Policy` 对象后，我们就可以通过调用该对象的 `EncryptWithFactory` 方法，来执行实际的加密操作。首先，对传入的数据进行 Base64 解码，获取到原始的明文数据，然后再通过调用 `GetKey` 方法，来获取指定版本的密钥 `KeyEntry.Key`，该密钥将作为后续对称加密使用的密钥。最后，通过调用 `SymmetricEncryptRaw` 方法，传入密钥版本、加密密钥、明文和对称加密参数，来对明文执行对称加密操作。
 
-3. 执行加密操作：`*keysutil.Policy.EncryptWithFactory` 
-   1. Base64 解码，获取原始数据
-   2. 获取对应版本的密钥 `KeyEntry.Key`
-   3. 调用 `*keysutil.Policy.SymmetricEncryptRaw` 方法进行加密
-      1. 使用对应版本的密钥生成 AES 密钥，通过 `aes.NewCipher` 使用 AES 密钥构造 AES 块实例 `aesCipher`，再通过 `cipher.NewGCM` 使用 `aesCipher` 构造 GCM 实例 `gcm`；
-      2. 当没有指定 `nonce` 参数时，随机生成 12 字节的 `nonce` 进行加密（这里就是每次加密不收敛的原因所在，当没有指明 `nonce` 参数时，每次生成的 `nonce` 都是随机的）
-      3. 使用 GCM 实例 `gcm` 通过 `gcm.Seal` 方法来对明文进行加密并添加认证标签，并获取到最终的密文
-      4. 在不收敛时 `SymmetricOpts.Convergent == false`，将生成的密文追加到 `nonce` 后面，作为新的密文进行返回；
-   4. 对密文进行 Base64 编码
-   5. 为密文前置增加密钥的版本信息
-4. 构造响应并返回加密后的密文和其使用的密钥版本
+`SymmetricEncryptRaw` 方法，主要执行的操作，就是使用传入的加密密钥来构造 `GCM` 实例，并基于传入的对称加密参数，来生成 `GCM` 模式所需的 `nonce`，从而对传入的明文进行 `Seal` 密封操作，生成最终的密文。其具体流程如下所示。
+
+1. 使用对应版本的密钥生成 AES 密钥，通过 `aes.NewCipher` 使用 AES 密钥构造 AES 块实例 `aesCipher`，再通过 `cipher.NewGCM` 使用 `aesCipher` 构造 GCM 实例 `gcm`；
+2. 当没有指定 `nonce` 参数时，随机生成 12 字节的 `nonce` 进行加密（这里就是每次加密不收敛的原因所在，当没有指明 `nonce` 参数时，每次生成的 `nonce` 都是随机的）
+3. 使用 GCM 实例 `gcm` 通过 `gcm.Seal` 方法来对明文进行加密并添加认证标签，并获取到最终的密文
+4. 在不收敛时 `SymmetricOpts.Convergent == false`，将生成的密文追加到 `nonce` 后面，作为新的密文进行返回；
+
+执行完 `SymmetricEncryptRaw` 方法后，将获取到对称加密后的密文，然后再对齐进行 Base64 编码，并为编码后的数据前置增加密钥的 “版本” 信息。最终，构造响应结构体，并返回加密后的密文和其使用的密钥版本。
+
+```plantuml
+@startuml
+Alice -> Bob: Hello, Bob!
+Bob --> Alice: Hi, Alice!
+@enduml
+```
 
 ## 解密原理剖析
 
