@@ -137,8 +137,6 @@ Success! Data written to: transit/keys/my-key/rotate
 当完成密钥的轮转操作后，我们可以再次通过 `vault read` 命令，来查询最新的密钥信息。此时可以看到，密钥的最新版本（latest_version）变成了 “2”，同时密钥版本集（keys）中多了一个新的密钥，但此时最小解密版本（min_decryption_version）仍为 “1”，也就意味着，我们仍然可以使用该密钥对 v1 版本的密文进行解密操作。
 
 ```shell
-vault write -f transit/keys/my-key/rotate
-
 Key                       Value
 ---                       -----
 allow_plaintext_backup    false
