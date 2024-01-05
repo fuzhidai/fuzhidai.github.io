@@ -1,4 +1,9 @@
-
+---
+layout: post
+title:  "Vault 系列：用户使用场景概览"
+date:   2024-01-05 22:44:00 +0800
+categories: vault,use-cases
+---
 
 # 使用场景
 
@@ -208,3 +213,8 @@ PKI 秘密引擎可以生成动态的 X.509 证书，通过该秘密引擎，服
 
 
 [kmip-spec]: http://docs.oasis-open.org/kmip/spec/v1.4/kmip-spec-v1.4.html
+
+# 相关引用
+【1】[Hashicorp Vault Use Cases](https://developer.hashicorp.com/vault/docs/use-cases)
+
+【2】[Hashicorp Vault Documentation](https://developer.hashicorp.com/vault/docs)
