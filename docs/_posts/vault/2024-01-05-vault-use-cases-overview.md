@@ -1,61 +1,38 @@
 ---
-layout: post
-title:  "Vault 系列：用户使用场景概览"
-date:   2024-01-05 22:44:00 +0800
-categories: vault,use-cases
+layout:         post
+title:          "Vault 系列：用户使用场景概览"
+subtitle:       " \"Vault use cases overview\""
+date:           2024-01-05 22:44:00 +0800
+author:         "fuzhidai"
+header-style:   text
+tags:
+    - Vault
 ---
 
-# 使用场景
+# Catalog
+- 1 Secrets Management
+    - 1.1 KV Secrets Engine
+    - 1.2 Database Credentials
+    - 1.3 Kubernetes Secrets
+- 2 Encryption Services
+    - 2.1 Transit Secrets Engine
+    - 2.2 Transform Secrets Engine
+    - 2.3 Tokenization
+- 3 Key Management
+    - 3.1 KMIP Secrets Engine
+    - 3.2 Key Management Secrets Engine
+    - 3.3 PKI
 
-```plantuml
-@startmindmap
-
-+ Use Cases
-++ Secrets Management
-+++ KV Secrets Engine
-+++ Database Credentials
-+++ Kubernetes Secrets
-++ Encryption Services
-+++ Transit Secrets Engine
-+++ Transform Secrets Engine
-+++ Tokenization
-++ Key Management
-+++ KMIP Secrets Engine
-+++ Key Management Secrets Engine
-+++ PKI
-
-@endmindmap
-```
-
-## 1. Secrets Management（秘密管理）
-
-```plantuml
-@startmindmap
-
-+ Secrets Management
-++ KV Secrets Engine
-++ Database Credentials
-++ Kubernetes Secrets
-
-@endmindmap
-```
+# 1 Secrets Management（秘密管理）
 
 ### 1.1 KV Secrets Engine（KV 秘密引擎）
 > A generic Key-Value store used to store arbitrary secrets within the configured physical storage for Vault.
 
 通用的键值秘密存储引擎，用于将任意秘密保存到插件化配置的 Vault 物理存储中。该服务可以在两种不同的模式下运行，在一种模式下，将仅存储密钥的单个版本，而在另一种模式下，可以通过启用版本控制，来为每个密钥存储一定数量的历史版本。
 
-```plantuml
-@startmindmap
-
-+ KV Secrets Engine
-++ KV version 1
-+++ version: non-versioned key
-++ KV version 2
-+++ version: versioned key
-
-@endmindmap
-```
+- KV Secrets Engine
+    - KV version 1 : non-versioned key
+    - KV version 2 : versioned key
 
 #### KV version 1（非版本化模式）
 当服务在模式一下运行时，引擎只会保留最近一次写入的密钥值，可以将该模式简单理解为是一个 “非版本化” 的模式。在 “非版本化” 的模式下，因为不会对密钥的历史版本进行存储，也无需额外存储用于维护版本的元数据，所以能够有效的降低密钥存储的大小。同时，因为减少了版本信息的维护，这使得服务端对于任何给定的请求，都能够最大限度的降低对底层存储的调用及锁定，从而将使得整个服务具有更高的性能。
@@ -70,6 +47,17 @@ categories: vault,use-cases
 
 通过使用该服务，实体访问数据库服务就不再需要对凭证进行硬编码，仅需在需要使用凭证的时候，动态的对引擎服务发起请求来获取这些凭据。同时，由于每个服务（用户）均使用唯一的凭据来访问数据库，因此在发现数据库出现异常访问时，可以根据 SQL 用户名直接追踪到具体服务的特定实例，这大大提升了 “审计” 的准确性和效率。
 
+- Database Credentials
+    - roles
+        - Dynamic roles: Username and Password are Managed
+        - Static roles: Username and Password are Semi-Managed
+    - database users
+        - Root users: Used to manage other standard users
+        - Standard users: Used to apply credentials for vault user 
+    - credentials
+        - Root credentials: Used to manage other standard credentials
+        - Standard credentials: Issue to vault user to use
+
 针对不同的使用场景，Vault 分别提供了两种角色：动态角色和静态角色。
 - **动态角色**：可以理解为是一种 “全托管” 方案，即由 Vault 全权负责数据账号密码的生命周期管理，适用于短时间的临时使用场景。
 - **静态角色**：可以理解为是一种 “半托管” 方案，由管理员将已有的账号托管给 Vault 进行管理，Vault 可以按照管理员的设置，定期对账号的密码进行轮转替换，但是不会对账号自身进行变更，静态角色更适合长期使用的场景。
@@ -77,29 +65,6 @@ categories: vault,use-cases
 同时，Vault 也对数据库用户和数据库凭证进行了区分，定义了两种不同用途的用户和凭证。
 - **Root 用户**：该用户由 Vault 用户管理员进行创建，并将其配置给 Vault 进行使用，属于管理者用户，其对应的凭证为 “Root 凭证”，Vault 将使用该用户进行数据库凭据的 “创建/更新/删除” 等操作，因此该用户需要具有对其他数据库用户的操作权限。
 - **Standard 用户**：在 “动态角色” 场景下，该用户由 “Root 用户” 创建，而在 “静态角色” 场景下，该用户由管理员进行配置，其主要的用途是生成可供 vault 用户直接使用的生产凭证，因此会被定义轮转，其对应的凭证为 “Standard 凭证”。
-
-```plantuml
-@startmindmap
-
-+ Database Credentials
-++ roles
-+++ Dynamic roles
-++++ Username and Password are Managed
-+++ Static roles
-++++ Username and Password are Semi-Managed
-++ database users
-+++ Root users
-++++ Used to manage other standard users
-+++ Standard users
-++++ Used to apply credentials for vault user 
-++ credentials
-+++ Root credentials
-++++ Used to manage other standard credentials
-+++ Standard credentials
-++++ Issue to vault user to use
-
-@endmindmap
-```
 
 #### Dynamic roles（动态角色：全托管）
 服务提供了 “租约机制（leasing mechanism）” 来对凭证的动态轮转提供了支持，在该场景下生成的角色和秘密一般被称为 “动态角色” 或 “动态秘密”，服务会通过自己内部的 “租期维护机制” 及 “凭证撤销机制”，在用户租约到期后的 “合理时间” 内，对其进行权限失效操作。
@@ -111,12 +76,21 @@ Vault 对所有的数据库机密引擎都提供了静态角色功能，静态�
 
 #### 动态角色和静态角色的区别
 
-|     | 动态角色  | 静态角色  |
-|  ----  | ----  | ----  |
-| 账号管控 | 每当请求凭证时，Vault 都会在数据库中创建一个全新的账号，并在凭证到期时，自动注销该账号，因此账号的生命周期是与凭证的有效期相绑定的 | 账号是预先存在的，或者是由管理员手动创建的，Vault 不会创建或销毁账号，而是对这些静态账号的凭证（用户名和密码）进行管理，在设定的轮换周期上更新它们 |
-| 凭证轮转 | 因为每次都会创建新的账号和密码，并且在使用完毕后即销毁，所以不需要轮换凭证 | Vault 会定期轮换静态账号的密凭证，也就是更新账号的密码，以确保即使凭证被泄露，也只会在一个较短的时间窗口内存在风险 |
-| 使用场景 | 适用于需要短期访问的场景，比如临时任务、一次性操作或服务的自动扩展等。在这些场景下，动态角色能够提供快速、安全的访问，并且在使用完毕后及时对账号进行清理 | 适用于需要长期存在和访问数据库的场景，比如专门的服务账号或持久化的应用账号。静态角色允许长期控制账号，并通过周期性轮转凭证，来保证安全性 |
-| 权限变更 | 每次创建的账号都可以有不同的权限集，允许每个凭证请求特定的权限 | 由于账号是预先存在的，所以权限通常是在创建的时候设置的，不会随着凭证的轮换而改变 |
+**区别一： 账号管控**
+<br>- **动态角色**: 每当请求凭证时，Vault 都会在数据库中创建一个全新的账号，并在凭证到期时，自动注销该账号，因此账号的生命周期是与凭证的有效期相绑定的；
+<br>- **静态角色**: 账号是预先存在的，或者是由管理员手动创建的，Vault 不会创建或销毁账号，而是对这些静态账号的凭证（用户名和密码）进行管理，在设定的轮换周期上更新它们；
+
+**区别二： 凭证轮转**
+<br>- **动态角色**: 因为每次都会创建新的账号和密码，并且在使用完毕后即销毁，所以不需要轮换凭证；
+<br>- **静态角色**: Vault 会定期轮换静态账号的密凭证，也就是更新账号的密码，以确保即使凭证被泄露，也只会在一个较短的时间窗口内存在风险；
+
+**区别三： 使用场景**
+<br>- **动态角色**: 适用于需要短期访问的场景，比如临时任务、一次性操作或服务的自动扩展等。在这些场景下，动态角色能够提供快速、安全的访问，并且在使用完毕后及时对账号进行清理；
+<br>- **静态角色**: 适用于需要长期存在和访问数据库的场景，比如专门的服务账号或持久化的应用账号。静态角色允许长期控制账号，并通过周期性轮转凭证，来保证安全性；
+
+**区别四： 权限变更**
+<br>- **动态角色**: 每次创建的账号都可以有不同的权限集，允许每个凭证请求特定的权限；
+<br>- **静态角色**: 由于账号是预先存在的，所以权限通常是在创建的时候设置的，不会随着凭证的轮换而改变；
 
 动态角色适合短暂、临时或高变动性的数据库访问需求，以此提供更高的安全性和灵活性。而静态角色更适合固定’长期的数据库访问需求，通过凭证轮转提供安全保障，同时避免频繁的创建和销毁数据库账号，降低相关的操作开销。
 
@@ -130,18 +104,9 @@ Vault 支持通过官方的 HashiCorp Vault Helm 将 Vault 部署到 K8s 集群�
 |  高可用模式（High-Availability）  | 高可用存储（如 Consul）  | 集群部署  | 生产环境  |
 |  外部模式（External）  | 外部服务器存储  | 单服务器部署  | 生产环境  |
 
-## 2. Encryption Services（加密服务）
+---
 
-```plantuml
-@startmindmap
-
-+ Encryption Services
-++ Transit Secrets Engine
-++ Transform Secrets Engine
-++ Tokenization
-
-@endmindmap
-```
+# 2 Encryption Services（加密服务）
 
 ### 2.1 Transit Secrets Engine（数据传输秘密引擎）
 该引擎是 Vault 提供的一个用于对被传输数据进行加解密的秘密引擎，它不会对加解密的数据进行存储，而仅仅是作为一种 “加密即服务（Encryption as a Service，EaaS）” 的服务提供者，并提供了对数据进行签名和验证的功能。
@@ -181,19 +146,9 @@ Transform Secrets Engine 是一个用于保护敏感数据的秘密引擎，它�
 
 当启用收敛的标记转化后，Vault 会更改算法，对相同的明文和过期时间，标记化编码为相同的令牌，并且仅存储保留该标记的单个条目。标记收敛在使用外部存储模式时，具有较小的性能损失，但在内置存储时则具有较大的性能损失，这主要是因为在收敛编码时，需要避免重复条目并更新元数据。因此建议如果某些用例需要收敛，而另一些则不需要，此时应创建两个不同的标记化变换，并且仅在其中一个上启用收敛配置。
 
-## 3. Key Management（密钥管理）
+---
 
-
-```plantuml
-@startmindmap
-
-+ Key Management
-++ KMIP Secrets Engine
-++ Key Management Secrets Engine
-++ PKI
-
-@endmindmap
-```
+# 3 Key Management（密钥管理）
 
 ### 3.1 KMIP Secrets Engine（KMIP 秘密引擎）
 KMIP 机密引擎允许 Vault 充当密钥管理互操作性协议 [Key Management
@@ -211,10 +166,8 @@ PKI 秘密引擎可以生成动态的 X.509 证书，通过该秘密引擎，服
  
 此外，通过允许大多数吊销操作被撤销，这个秘密引擎允许生成临时证书，且证书可以在应用程序启动时获取，并存储在内存中，并在关闭时丢弃，而不需要写入磁盘。
 
-
 [kmip-spec]: http://docs.oasis-open.org/kmip/spec/v1.4/kmip-spec-v1.4.html
 
 # 相关引用
 【1】[Hashicorp Vault Use Cases](https://developer.hashicorp.com/vault/docs/use-cases)
-
-【2】[Hashicorp Vault Documentation](https://developer.hashicorp.com/vault/docs)
+<br>【2】[Hashicorp Vault Documentation](https://developer.hashicorp.com/vault/docs)
