@@ -108,7 +108,7 @@ export WRAPPING_TOKEN="hvs.CAESIGu9Ulc0Uhmqa8hmXx7DyvnrFvOGmlecFcl8kkGz-tLoGh4KH
 
 在完成了上一步的操作后，应用就可以通过环境变量从管理员那里接受到一个一次性的包装令牌，此时为了让应用能从 `secret/dev` 中读取其所需的秘密，它必须对这个令牌执行 `unwrap` 操作。
 
-需要注意的是，如果应用一直没有收到其期望获取的响应包装令牌，可能是其它攻击者拦截了该令牌，并对该令牌提前执行了解包操作，然后阻断了该令牌的继续下发传播，因此，此时应该立即进行排查。
+需要注意的是，如果应用一直没有收到其期望获取的响应包装令牌，可能是其它攻击者拦截了该令牌，并对该令牌提前执行了解包操作，然后阻断了该令牌的下发传播，因此，此时应该立即进行排查。
 
 **1）解包获取秘密**
 
@@ -136,5 +136,5 @@ VAULT_TOKEN=$WRAPPING_TOKEN vault unwrap
 ### 引用参考
 
 **【1】**[Vault cubbyhole response wrapping](https://developer.hashicorp.com/vault/tutorials/secrets-management/cubbyhole-response-wrapping)
-`<br>`**【2】**[Cubbyhole secrets engine](https://developer.hashicorp.com/vault/docs/secrets/cubbyhole)
-`<br>`**【3】**[Response wrapping](https://developer.hashicorp.com/vault/docs/concepts/response-wrapping)
+<br>**【2】**[Cubbyhole secrets engine](https://developer.hashicorp.com/vault/docs/secrets/cubbyhole)
+<br>**【3】**[Response wrapping](https://developer.hashicorp.com/vault/docs/concepts/response-wrapping)
