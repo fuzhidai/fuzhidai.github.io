@@ -16,9 +16,9 @@ tags:
 
 注意：这不是 Vault 集群加固指南，请参阅我们的 [Vault 产品加固指南](https://developer.hashicorp.com/vault/tutorials/operations/production-hardening)，并从攻击者的角度了解如何试图破坏Vault，我推荐我长期同事 John Boero 的博客文章：[我如何攻击您的 HashiCorp Vault（以及您如何阻止我）系统加固。](https://medium.com/hashicorp-engineering/how-id-attack-your-hashicorp-vault-and-how-you-can-prevent-me-system-hardening-ce151454e26b)
 
-### 当你需要 AppRole：Secret Zero
+### 当你需要 AppRole：零凭据
 
-在应用程序可以从 Vault 获取秘密之前，需要为它们提供一个可以进行身份验证的秘密 —— 这有点像先有鸡还是先有蛋的问题，我们称之为 “安全引入” 或 “秘密零” 难题。应用程序可以通过以下三种基本方法来解决这个难题，向 Vault 进行身份验证，并获取令牌：
+在应用程序可以从 Vault 获取秘密之前，需要为它们提供一个可以进行身份验证的秘密 —— 这有点像先有鸡还是先有蛋的问题，我们称之为 “安全引入” 或 “零凭据” 难题。应用程序可以通过以下三种基本方法来解决这个难题，向 Vault 进行身份验证，并获取令牌：
 
 * 通过使用底层平台身份（云提供商 IAM 角色、Kubernetes 服务帐户等）；
 * 通过使用运营商提供的非平台身份验证（用户名/密码）；
